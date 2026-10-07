@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from .database import Base, engine
-from .routes import logs, metrics
+from .routes import logs, metrics, sessions, tasks
 
 Base.metadata.create_all(bind=engine)
 
@@ -9,6 +9,8 @@ app = FastAPI(title="Personal Tracker API")
 
 app.include_router(metrics.router)
 app.include_router(logs.router)
+app.include_router(sessions.router)
+app.include_router(tasks.router)
 
 
 @app.get("/")

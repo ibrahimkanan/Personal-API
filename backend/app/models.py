@@ -46,7 +46,9 @@ class Session(Base):
     )
     started_at = Column(DateTime(timezone=True), nullable=False)
     ended_at = Column(DateTime(timezone=True))
-    active_duration_seconds = Column(Integer)
+    active_duration_seconds = Column(Integer)  # final total, set when stopped
+    accumulated_seconds = Column(Integer, nullable=False, default=0)  # running total across pause/resume
+    last_resumed_at = Column(DateTime(timezone=True))  # set while running; null while paused
     status = Column(String(20), nullable=False, default="running")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
