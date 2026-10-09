@@ -1,4 +1,3 @@
-from datetime import date
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -6,6 +5,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from .. import models, schemas
 from ..database import get_db
+from ..timeutils import local_today
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -15,7 +15,7 @@ def create_task(task: schemas.TaskCreate, db: DBSession = Depends(get_db)):
     db_task = models.Task(
         title=task.title,
         points=task.points,
-        due_date=task.due_date or date.today(),
+        due_date=task.due_date or local_today(),
     )
     db.add(db_task)
     db.commit()
@@ -27,7 +27,7 @@ def create_task(task: schemas.TaskCreate, db: DBSession = Depends(get_db)):
 def today_tasks(db: DBSession = Depends(get_db)):
     """Today's pending tasks plus anything still marked late from
     before — late items keep showing until done or deleted."""
-    today = date.today()
+    today = local_today()
     return (
         db.query(models.Task)
         .filter(
@@ -68,7 +68,7 @@ def rollover_late_tasks(db: DBSession = Depends(get_db)):
     """Meant to run once a day (cron / scheduled job), not from the
     UI. Any task still pending from a previous day becomes 'late'
     instead of just vanishing — see spec doc section 5c."""
-    today = date.today()
+    today = local_today()
     stale = (
         db.query(models.Task)
         .filter(models.Task.status == "pending", models.Task.due_date < today)

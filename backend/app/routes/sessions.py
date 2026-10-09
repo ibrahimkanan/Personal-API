@@ -1,10 +1,9 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
 
 from .. import models, schemas
 from ..database import get_db
+from ..timeutils import utcnow
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -18,7 +17,22 @@ def _get_session_or_404(session_id: int, db: DBSession) -> models.Session:
 
 @router.post("/start", response_model=schemas.SessionOut)
 def start_session(payload: schemas.SessionStart, db: DBSession = Depends(get_db)):
-    now = datetime.utcnow()
+    if not db.query(models.Metric).filter(models.Metric.id == payload.metric_id).first():
+        raise HTTPException(status_code=404, detail="Metric not found")
+
+    # One live stopwatch per metric: if one is already running/paused, return it.
+    existing = (
+        db.query(models.Session)
+        .filter(
+            models.Session.metric_id == payload.metric_id,
+            models.Session.status.in_(["running", "paused"]),
+        )
+        .first()
+    )
+    if existing:
+        return existing
+
+    now = utcnow()
     s = models.Session(
         metric_id=payload.metric_id,
         started_at=now,
@@ -38,9 +52,7 @@ def pause_session(session_id: int, db: DBSession = Depends(get_db)):
     if s.status != "running":
         raise HTTPException(status_code=400, detail=f"Session is {s.status}, not running")
 
-    now = datetime.utcnow()
-    elapsed = (now - s.last_resumed_at).total_seconds()
-    s.accumulated_seconds += int(elapsed)
+    s.accumulated_seconds += int((utcnow() - s.last_resumed_at).total_seconds())
     s.last_resumed_at = None
     s.status = "paused"
     db.commit()
@@ -54,7 +66,7 @@ def resume_session(session_id: int, db: DBSession = Depends(get_db)):
     if s.status != "paused":
         raise HTTPException(status_code=400, detail=f"Session is {s.status}, not paused")
 
-    s.last_resumed_at = datetime.utcnow()
+    s.last_resumed_at = utcnow()
     s.status = "running"
     db.commit()
     db.refresh(s)
@@ -67,25 +79,25 @@ def stop_session(session_id: int, db: DBSession = Depends(get_db)):
     if s.status == "completed":
         raise HTTPException(status_code=400, detail="Session already completed")
 
-    now = datetime.utcnow()
+    now = utcnow()
     if s.status == "running":
-        elapsed = (now - s.last_resumed_at).total_seconds()
-        s.accumulated_seconds += int(elapsed)
+        s.accumulated_seconds += int((now - s.last_resumed_at).total_seconds())
 
     s.ended_at = now
+    s.last_resumed_at = None
     s.active_duration_seconds = s.accumulated_seconds
     s.status = "completed"
-    db.add(s)
 
-    # Auto-create the matching log entry — this is the only place
-    # a 'duration' metric ever gets a log, per the spec doc.
-    log = models.Log(
-        metric_id=s.metric_id,
-        duration_seconds=s.active_duration_seconds,
-        logged_at=s.started_at,
-        session_id=s.id,
+    # Auto-create the matching log entry — the only way a 'duration'
+    # metric gets a log, per the spec doc.
+    db.add(
+        models.Log(
+            metric_id=s.metric_id,
+            duration_seconds=s.active_duration_seconds,
+            logged_at=s.started_at,
+            session_id=s.id,
+        )
     )
-    db.add(log)
     db.commit()
     db.refresh(s)
     return s
