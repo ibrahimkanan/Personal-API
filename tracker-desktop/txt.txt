@@ -1,0 +1,36 @@
+tracker-desktop/
+├── build/                      # أيقونات الـ installer (من الـ template)
+├── resources/                  # أيقونة التطبيق (من الـ template)
+├── src/
+│   ├── main/
+│   │   └── index.ts            # Main process: بيفتح النافذة (ما عدلناه)
+│   ├── preload/
+│   │   ├── index.ts            # (ما عدلناه)
+│   │   └── index.d.ts
+│   └── renderer/               # الواجهة (React)، وهون كل شغلنا
+│       ├── index.html          # ✏️ عدّلنا الـ CSP والعنوان
+│       └── src/
+│           ├── main.tsx        # نقطة دخول React (ما عدلناه)
+│           ├── env.d.ts        # (من الـ template)
+│           ├── App.tsx         # ✏️ الهيدر والتبويبين
+│           ├── api.ts          # 🆕 كل الاتصال بالباك اند
+│           ├── format.ts       # 🆕 تنسيق الوقت (133 → 2:13)
+│           ├── components/
+│           │   ├── TrackingTab.tsx     # 🆕 كروت التتبع والـ checkboxes
+│           │   ├── TasksTab.tsx        # 🆕 مهام اليوم والنقاط
+│           │   ├── Stopwatch.tsx       # 🆕 الستوب واتش
+│           │   ├── AddItemDialog.tsx   # 🆕 نافذة "+ Track something"
+│           │   └── Versions.tsx        # ❌ من الـ template، ما عاد إلها لزوم
+│           └── assets/
+│               ├── main.css            # ✏️ استبدال كامل
+│               ├── base.css            # ❌ ما عاد مستخدم
+│               ├── electron.svg        # ❌ ما عاد مستخدم
+│               └── wavy-lines.svg      # ❌ ما عاد مستخدم
+├── electron.vite.config.ts     # إعدادات البناء (من الـ template)
+├── electron-builder.yml        # إعدادات الـ installer
+├── eslint.config.mjs
+├── package.json
+├── tsconfig.json
+├── tsconfig.node.json
+├── tsconfig.web.json
+└── README.md
